@@ -12,14 +12,17 @@ from xiami.items import XiamiItem
 
 
 class Spider(CrawlSpider):
+
+    def __init__(self, email='1@qq.com', upwd='1'):
+        # 执行父类构造方法
+        super(Spider, self).__init__()
+        self.account_number = email
+        self.password = upwd
+
     # 爬虫名
-    name = 'ada'
+    name = 'Ada'
     allowed_domains = ['xiami.com']
     start_urls = ['http://www.xiami.com']
-    # 账号
-    account_number = ''
-    # 密码
-    password = ''
 
     headers = {
         "Accept": "application/json, text/javascript, */*; q=0.01",
