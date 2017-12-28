@@ -3,6 +3,8 @@
 # Created by PyCharm
 # @author  : mystic
 # @date    : 2017/12/28 11:12
+import scrapy
+from bs4 import BeautifulSoup
 from scrapy import Request, Selector, FormRequest
 from scrapy.http import HtmlResponse
 from scrapy.linkextractors import LinkExtractor
@@ -13,7 +15,7 @@ from xiami.items import XiamiItem
 
 class Spider(CrawlSpider):
 
-    def __init__(self, email='1@qq.com', upwd='1'):
+    def __init__(self, email='xxx@qq.com', upwd='xxx'):
         # 执行父类构造方法
         super(Spider, self).__init__()
         self.account_number = email
@@ -36,12 +38,14 @@ class Spider(CrawlSpider):
     }
 
     rules = {
-        Rule(LinkExtractor(allow=('/space/lib-song',)), callback='parse_page', follow=True),
+        Rule(LinkExtractor(
+            allow=('/search/song/page/1?spm=a1z1s.3521869.0.0.N35ts9&key=%E9%99%88%E5%A5%95%E8%BF%85&category=-1',)),
+             callback='parse_page', follow=True),
     }
 
     def start_requests(self):
         return [Request('https://login.xiami.com/member/login',
-                        meta={'cookiejar', 1},
+                        meta={'cookiejar': 1},
                         callback=self.post_login)]
 
     # FormRequest
@@ -86,17 +90,25 @@ class Spider(CrawlSpider):
                 r.meta.update(rule=n, link_text=link.text, cookiejar=response.meta['cookiejar'])
                 yield rule.process_request(r)
 
+    def parse(self, response):
+        num_pages = 66
+        base_url = 'http://www.xiami.com/search/song/page/{0}' \
+                   '?spm=a1z1s.3521869.0.0.N35ts9&key=%E9%99%88%E5%A5%95%E8%BF%85&category=-1'
+        for page in range(1, num_pages):
+            yield scrapy.Request(base_url.format(page), dont_filter=True, callback=self.parse_page)
+
     def parse_page(self, response):
-        # print 'hh'
-        mysong_list = Selector(response)
-        songs = mysong_list.xpath('//td[@class="song_name"]/a/@title').extract()
-        print(songs[0])
-        for song in songs:
+        html = response.body
+        soup = BeautifulSoup(html, 'lxml')
+        song_names = soup.select('td.song_name > a:nth-of-type(1)')
+        song_artists = soup.select('td.song_artist > a')
+        for i in range(len(song_artists)):
+            if song_artists[i]['title'] != '陈奕迅':
+                continue
+            print(song_artists[i]['title'])
+            print(song_names[i]['title'])
             item = XiamiItem()
             item['title'] = 'xiami_music'
-            item['name'] = self.account_number
-            item['song'] = song
+            item['name'] = song_artists[i]['title']
+            item['song'] = song_names[i]['title']
             yield item
-        # print '---\n'
-        # nexturl = mysong_list.xpath('//a[@class="p_redirect_l"]/@href').extract_first()
-        # yield self.make_requests_from_url(nexturl)
